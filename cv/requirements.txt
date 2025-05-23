@@ -1,4 +1,8 @@
 # Dependencies for the CV container.
-
 fastapi==0.115.12
 uvicorn[standard]==0.34.2
+ultralytics # For YOLO
+numpy       # For np.frombuffer
+opencv-python # For cv2.imdecode
+# torch might be needed if not pulled in by ultralytics, but usually is.
+# Pillow might be needed by ultralytics or other image ops.

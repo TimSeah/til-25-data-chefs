@@ -1,47 +1,67 @@
-"""Runs the OCR server."""
+# ocr_server.py
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi.responses import JSONResponse
+import io
+from .ocr_manager import OCRManager 
 
-# Unless you want to do something special with the server, you shouldn't need
-# to change anything in this file.
+app = FastAPI(
+    title="PaddleOCR Service",
+    description="Provides OCR capabilities using PaddleOCR, including optional layout analysis.",
+    version="1.0._YOUR_FINETUNED_MODEL_VERSION_" 
+)
+
+try:
+    ocr_manager_instance = OCRManager()
+    print("OCR Manager instance created successfully for FastAPI app.")
+except Exception as e:
+    print(f"CRITICAL: Failed to initialize OCRManager: {e}")
+    ocr_manager_instance = None 
 
 
-import base64
+@app.post("/ocr/")
+async def process_ocr(
+    image: UploadFile = File(..., description="Image file to perform OCR on."),
+    use_layout: bool = Form(False, description="Set to true to use layout analysis for potentially better structure extraction (e.g., columns).")
+):
+    if not ocr_manager_instance:
+        raise HTTPException(status_code=503, detail="OCR Service not available due to initialization error.")
 
-from fastapi import FastAPI, Request
-from ocr_manager import OCRManager
+    if not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
 
-app = FastAPI()
-manager = OCRManager()
+    try:
+        image_bytes = await image.read()
+        
+        print(f"Received image: {image.filename}, content type: {image.content_type}, size: {len(image_bytes)} bytes")
+        print(f"Performing OCR with use_layout={use_layout}")
 
+        # Updated method call here
+        result = ocr_manager_instance.ocr(io.BytesIO(image_bytes), use_layout_analysis=use_layout)
+        
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        print(f"OCR Result text length: {len(result.get('text', ''))}")
+        if 'layout_boxes' in result and result['layout_boxes']:
+            print(f"Layout analysis returned {len(result['layout_boxes'])} regions.")
 
-@app.post("/ocr")
-async def ocr(request: Request) -> dict[str, list[str]]:
-    """Performs OCR on images of documents.
+        return JSONResponse(content=result)
 
-    Args:
-        request: The API request. Contains a list of images, encoded in
-            base-64.
-
-    Returns:
-        A `dict` with a single key, `"predictions"`, mapping to a `list` of
-        `str` document text, in the same order as which appears in `request`.
-    """
-
-    inputs_json = await request.json()
-
-    predictions = []
-    for instance in inputs_json["instances"]:
-
-        # Reads the base-64 encoded image and decodes it into bytes.
-        image_bytes = base64.b64decode(instance["b64"])
-
-        # Performs OCR and appends the result.
-        text = manager.ocr(image_bytes)
-        predictions.append(text)
-
-    return {"predictions": predictions}
-
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        print(f"Error during OCR processing: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during OCR: {str(e)}")
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    """Health check endpoint for your model."""
-    return {"message": "health ok"}
+async def health_check():
+    if ocr_manager_instance:
+        return {"status": "healthy", "message": "OCR Service is running."}
+    else:
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "message": "OCR Service initialization failed."})
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5003)
