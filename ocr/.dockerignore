@@ -1,0 +1,16 @@
+# Ignore everything in model folder except the final model
+fine_tuned_trocr_model/*
+!fine_tuned_trocr_model/final_model_and_processor/**
+
+# Ignore unnecessary system files
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.DS_Store
+
+# Ignore test and checkpoint directories
+test/
+runs/
+checkpoint-*/
+

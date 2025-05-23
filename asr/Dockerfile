@@ -18,13 +18,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copies your source files.
+# This will copy src/asr_manager.py (with both classes) and src/asr_server.py
 COPY src .
 
 #COPY TRAINED MODEL
+# This copies your ASR model to /app/model inside the container
 COPY ../models/asr_finetuned_model_small_aug/model_and_processor_files /app/model/
 
 # Set the MODEL_DIR environment variable
+# ASRManager will use this if no model_path_override is given during instantiation
 ENV MODEL_DIR /app/model
 
 # Starts your model server.
+# This assumes 'app' is an instance of FastAPI (or similar) in asr_server.py
 CMD uvicorn asr_server:app --port 5001 --host 0.0.0.0
