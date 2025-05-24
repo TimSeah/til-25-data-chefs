@@ -1,11 +1,6 @@
 # .gitignore tells Git not to track these files.
 
-
-# Large files like model weights, training data, and results should be ignored.
-**/models/
-**/results/
-
-# Byte-compiled / optimized / DLL files
+# Python cache and compiled files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -170,3 +165,36 @@ cython_debug/
 
 # ignore .json files generated while doing gcloud things
 src/gcloud/*.json
+
+# --- Machine Learning Specific Ignores ---
+# Large files like model weights, training data, and results should be ignored.
+# Consider Git LFS for files you need to version.
+**/models/
+**/results/
+**/data/ # If you have large datasets
+
+# Specific model file extensions and common large filenames
+*.pt
+*.pth
+*.safetensors
+optimizer.pt
+model.safetensors
+
+# Specific directories known to contain large model outputs/checkpoints
+# (if not already covered by **/models/ or **/results/)
+ocr/fine_tuned_trocr_model/
+asr/src/checkpoints/ # Checkpoints from training runs
+
+# Training logs and event files
+events.out.tfevents.*
+asr/logs/
+ocr/fine_tuned_trocr_model/runs/
+
+# RL generated episodes (if large and not essential to version control)
+rl/episode_*.mp4
+
+# Other large files identified
+# cv/src/best.pt # If it's a model output
+# ocr/src/train_label.txt # If it's very large and/or generated
+# ocr/src/=2.0.1 # If this is a large downloaded/generated file
+# --- End Machine Learning Specific Ignores ---
