@@ -1,51 +1,36 @@
 """Runs the CV server."""
 
-# Unless you want to do something special with the server, you shouldn't need
-# to change anything in this file.
-
-
 import base64
-from typing import Any
+from typing import Any, List, Dict # List and Dict might need to be imported from typing for older Pythons but are built-in for type hints in newer ones
 
 from fastapi import FastAPI, Request
 
-from cv_manager import CVManager
+# Changed from: from .cv_manager import CVManager
+from cv_manager import CVManager  # <<< CHANGE THIS LINE
 
 
 app = FastAPI()
-manager = CVManager()
+# Assuming best.pt is also in /app
+manager = CVManager(model_path="best.pt") # This should now work if best.pt is in /app
 
 
 @app.post("/cv")
 async def cv(request: Request) -> dict[str, list[list[dict[str, Any]]]]:
-    """Performs CV object detection on image frames.
-
-    Args:
-        request: The API request. Contains a list of images, encoded in
-            base-64.
-
-    Returns:
-        A `dict` with a single key, `"predictions"`, mapping to a `list` of
-        `dict`s containing your CV model's predictions, in the same order as
-        which appears in `request`. See `cv/README.md` for the expected format.
-    """
-
+    # ... rest of your code ...
     inputs_json = await request.json()
-
     predictions = []
     for instance in inputs_json["instances"]:
-
-        # Reads the base-64 encoded image and decodes it into bytes.
         image_bytes = base64.b64decode(instance["b64"])
-
-        # Performs object detection and appends the result.
         detections = manager.cv(image_bytes)
         predictions.append(detections)
-
     return {"predictions": predictions}
-
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Health check endpoint for your model."""
     return {"message": "health ok"}
+
+# If you need to run this file directly for testing (outside Docker/Uvicorn)
+# you might add this, but Uvicorn handles running the app object in Docker.
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=5002)

@@ -2,15 +2,15 @@ fastapi==0.115.12
 uvicorn[standard]==0.34.2
 
 # Core ML Libraries
-transformers==4.39.3 # Or your chosen pinned version (e.g., 4.41.2)
-torch>=2.2.0,<2.4.0 
+transformers==4.39.3
+torch>=2.2.0,<2.4.0
 librosa>=0.10.0,<0.11.0
 soundfile>=0.12.0,<0.13.0
 numpy>=1.25.0,<1.27.0
 
 # For Speed Optimizations
-bitsandbytes>=0.41.1 
-accelerate>=0.25.0
+bitsandbytes>=0.43.0
+accelerate>=0.29.0
 
 # Other necessary libraries for your project
 python-dotenv>=1.0.0

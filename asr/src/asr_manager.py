@@ -1,4 +1,4 @@
-"""Manages the ASR model and includes Text Autocompletion"""
+"""Manages the ASR model with batch processing capability"""
 
 import io
 import os
@@ -7,174 +7,310 @@ import librosa
 import soundfile as sf
 import numpy as np
 import logging
+from typing import List
 
 from transformers import (
     WhisperProcessor,
     WhisperForConditionalGeneration,
-    BitsAndBytesConfig,
-    GPT2LMHeadModel,    # Added for TextAutoCompleter
-    GPT2Tokenizer      # Added for TextAutoCompleter
+    BitsAndBytesConfig
 )
-# Note: hf_logging was used in the standalone TextAutoCompleter, 
-# you might want to manage its verbosity here too if needed.
-# from transformers import logging as hf_logging 
-# hf_logging.set_verbosity_error() 
 
+# Ensure root logger is at least INFO for this module if not set by server
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+logger = logging.getLogger(__name__) # Use a specific logger for this module
 
-# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 SCRIPT_DIR_ASR_MANAGER = os.path.dirname(os.path.abspath(__file__))
 
-# -----------------------------------------------------------------------------
-# ASRManager Class Definition (as previously modified)
-# -----------------------------------------------------------------------------
 class ASRManager:
     def __init__(self, model_path_override: str = None):
-        # ... (all your ASRManager __init__ code remains here)
-        # Make sure `default_model_name_from_training` is correctly set for your ASR model
-        default_model_name_from_training = "asr_finetuned_model_small_aug" # Or your actual ASR model name
-        # ... (rest of __init__)
-        logging.info(f"ASRManager: Initialization complete. Model is on device and in eval mode.")
+        self.quantized_successfully = False
+        resolved_model_path = ""
+        # Path resolution logic (as before)
+        if model_path_override:
+            resolved_model_path = model_path_override
+            logger.info(f"Using provided model_path_override: {resolved_model_path}")
+        else:
+            model_path_env = os.getenv("MODEL_DIR")
+            if model_path_env:
+                resolved_model_path = model_path_env
+                logger.info(f"Using MODEL_DIR from environment variable: {resolved_model_path}")
+            else:
+                default_model_name_from_training = "asr_finetuned_model_small_aug"
+                base_model_path_attempt1 = os.path.join(SCRIPT_DIR_ASR_MANAGER, "..", "..", "models", default_model_name_from_training, "model_and_processor_files")
+                base_model_path_attempt2 = os.path.join(SCRIPT_DIR_ASR_MANAGER, "..", "models", default_model_name_from_training, "model_and_processor_files")
 
+                if os.path.isdir(base_model_path_attempt1):
+                    resolved_model_path = base_model_path_attempt1
+                elif os.path.isdir(base_model_path_attempt2):
+                    resolved_model_path = base_model_path_attempt2
+                else:
+                    logger.error(f"MODEL_DIR not set, and default paths ('{base_model_path_attempt1}', '{base_model_path_attempt2}') not found for model '{default_model_name_from_training}'.")
+                    raise FileNotFoundError(f"Model directory not found. Set MODEL_DIR or ensure default path is correct.")
+                logger.info(f"MODEL_DIR not set, using resolved default path: {resolved_model_path}")
 
-    def asr(self, audio_bytes: bytes, max_new_asr_tokens: int = None) -> str:
-        # ... (all your ASRManager asr method code remains here)
-        # ...
-        logging.debug("Generating transcription...")
-        try:
-            self.model.eval()
-            with torch.no_grad():
-                generation_kwargs = {
-                    "num_beams": 1,
-                    "do_sample": False
-                }
-                if max_new_asr_tokens is not None and isinstance(max_new_asr_tokens, int) and max_new_asr_tokens > 0:
-                    generation_kwargs["max_new_tokens"] = max_new_asr_tokens
-                    logging.info(f"ASR will be limited to {max_new_asr_tokens} new tokens.")
-                
-                predicted_ids = self.model.generate(self.processor(audio_bytes, sampling_rate=16000, return_tensors="pt").input_features.to(self.device), **generation_kwargs) # Simplified for brevity
-            # ... (rest of asr method)
-            transcription = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
-            logging.info(f"Partial/Full Transcription: '{transcription}'")
-        except Exception as e:
-            logging.error(f"Error during model generation: {e}", exc_info=True)
-            return "Error: Could not generate transcription."
-        return transcription.strip()
+        logger.info(f"ASRManager: Final model path to load: {resolved_model_path}")
+        if not os.path.isdir(resolved_model_path):
+             logger.error(f"ASRManager: Model path is not a valid directory: {resolved_model_path}")
+             raise FileNotFoundError(f"Model path is not a valid directory: {resolved_model_path}")
 
-# -----------------------------------------------------------------------------
-# TextAutoCompleter Class Definition (integrated into this file)
-# -----------------------------------------------------------------------------
-class TextAutoCompleter:
-    def __init__(self, model_name: str = "gpt2"):
-        """
-        Initializes the TextAutoCompleter.
-        Args:
-            model_name (str): Name of the pre-trained GPT-2 model to use.
-        """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logging.info(f"TextAutoCompleter: Using device: {self.device}")
-        try:
-            self.tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-            self.model = GPT2LMHeadModel.from_pretrained(model_name)
-            self.model.to(self.device)
-            self.model.eval()
-            if self.tokenizer.pad_token_id is None:
-                self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-                self.model.config.pad_token_id = self.model.config.eos_token_id
-            logging.info(f"TextAutoCompleter: Loaded model {model_name} successfully.")
-        except Exception as e:
-            logging.error(f"TextAutoCompleter: Error loading model {model_name}: {e}", exc_info=True)
-            raise
+        logger.info(f"ASRManager: Determined execution device: {self.device}")
 
-    def autocomplete(self, partial_text: str, max_length: int = 50, num_beams: int = 3) -> str:
-        """
-        Auto-completes the given partial text.
-        Args:
-            partial_text (str): The text to autocomplete.
-            max_length (int): The maximum length of the generated sequence (partial_text + completion).
-            num_beams (int): Number of beams for beam search.
-        Returns:
-            str: The auto-completed text.
-        """
-        if not partial_text:
-            return ""
-        logging.debug(f"TextAutoCompleter: Received partial text: '{partial_text}'")
-        try:
-            inputs = self.tokenizer.encode(partial_text, return_tensors="pt", padding=True, truncation=True).to(self.device)
-            if max_length <= inputs.shape[1]:
-                logging.warning("TextAutoCompleter: max_length is too short for completion, returning original text.")
-                return partial_text
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    inputs,
-                    max_length=max_length,
-                    num_return_sequences=1,
-                    num_beams=num_beams,
-                    early_stopping=True,
-                    pad_token_id=self.tokenizer.pad_token_id
-                )
-            completed_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            logging.info(f"TextAutoCompleter: Completed text: '{completed_text}'")
-            return completed_text.strip()
-        except Exception as e:
-            logging.error(f"TextAutoCompleter: Error during autocomplete: {e}", exc_info=True)
-            return partial_text
-
-# -----------------------------------------------------------------------------
-# Main block for testing (if you want to keep it in this file)
-# -----------------------------------------------------------------------------
-if __name__ == '__main__':
-    print("Running ASRManager & TextAutoCompleter standalone test (integrated file)...")
-    
-    # --- ASRManager Test ---
-    # Ensure this model name and path logic matches your setup
-    asr_model_name_for_testing = "asr_finetuned_model_small_aug"
-    constructed_asr_model_path = os.path.join(
-        SCRIPT_DIR_ASR_MANAGER, "..", "..", "models", # Adjust if your 'models' dir is elsewhere
-        asr_model_name_for_testing,
-        "model_and_processor_files"
-    )
-    if not os.path.isdir(constructed_asr_model_path):
-         # Try alternative path if script is in src/asr/ and models is sibling to asr/
-        constructed_asr_model_path = os.path.join(
-            SCRIPT_DIR_ASR_MANAGER, "..", "models",
-            asr_model_name_for_testing,
-            "model_and_processor_files"
+        quantization_config_bnb = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
         )
+        logger.info("ASRManager: Configured 4-bit quantization with BitsAndBytes.")
+
+        try:
+            self.processor = WhisperProcessor.from_pretrained(resolved_model_path)
+            logger.info("ASRManager: WhisperProcessor loaded successfully.")
+            self.expected_feature_length = self.processor.feature_extractor.n_samples // self.processor.feature_extractor.hop_length
+            logger.info(f"ASRManager: Processor's feature_extractor.chunk_length: {getattr(self.processor.feature_extractor, 'chunk_length', 'N/A')}")
+            logger.info(f"ASRManager: Processor's feature_extractor.n_samples: {getattr(self.processor.feature_extractor, 'n_samples', 'N/A')} (This is {getattr(self.processor.feature_extractor, 'n_samples', 0)//16000}s)")
+            logger.info(f"ASRManager: Calculated expected feature length for model: {self.expected_feature_length}")
 
 
-    print(f"Attempting to load ASR model for testing from: {constructed_asr_model_path}")
+            logger.info(f"ASRManager: Attempting to load model with quantization, device_map='auto', torch_dtype=float16, low_cpu_mem_usage=True...")
+            self.model = WhisperForConditionalGeneration.from_pretrained(
+                resolved_model_path,
+                quantization_config=quantization_config_bnb,
+                device_map="auto",
+                torch_dtype=torch.float16, 
+                low_cpu_mem_usage=True 
+            )
+            logger.info("ASRManager: Model loaded successfully with quantization.")
+            self.quantized_successfully = True
 
-    if not os.path.isdir(constructed_asr_model_path):
-        print(f"ERROR: ASR Model directory not found: {constructed_asr_model_path}")
+        except Exception as e:
+            logger.error(f"ASRManager: Error loading model with quantization: {e}. Falling back.", exc_info=True)
+            if not hasattr(self, 'processor') or self.processor is None: 
+                 self.processor = WhisperProcessor.from_pretrained(resolved_model_path)
+                 self.expected_feature_length = self.processor.feature_extractor.n_samples // self.processor.feature_extractor.hop_length
+                 logger.info(f"ASRManager (fallback): Processor's feature_extractor.chunk_length: {getattr(self.processor.feature_extractor, 'chunk_length', 'N/A')}")
+                 logger.info(f"ASRManager (fallback): Processor's feature_extractor.n_samples: {getattr(self.processor.feature_extractor, 'n_samples', 'N/A')} (This is {getattr(self.processor.feature_extractor, 'n_samples', 0)//16000}s)")
+                 logger.info(f"ASRManager (fallback): Calculated expected feature length for model: {self.expected_feature_length}")
+
+
+            self.model = WhisperForConditionalGeneration.from_pretrained(resolved_model_path)
+            logger.warning("ASRManager: Loaded model without quantization due to previous error.")
+            logger.info(f"ASRManager: Moving non-quantized model to device: {self.device}")
+            self.model.to(self.device)
+            self.quantized_successfully = False
+
+        if self.quantized_successfully:
+            logger.info(f"ASRManager: Quantized model device map: {getattr(self.model, 'hf_device_map', 'N/A')}")
+            logger.info(f"ASRManager: Quantized model is on device type(s): {set(d.type for d in self.model.hf_device_map.values()) if hasattr(self.model, 'hf_device_map') and isinstance(self.model.hf_device_map, dict) else 'N/A'}")
+        else:
+            logger.info(f"ASRManager: Non-quantized model is on device: {self.model.device}")
+
+        logger.info("ASRManager: torch.compile() step temporarily skipped for debugging quantization.")
+        
+        if hasattr(self.model.generation_config, 'forced_decoder_ids') and \
+           self.model.generation_config.forced_decoder_ids is not None:
+            self.model.generation_config.forced_decoder_ids = None
+        
+        tokenizer_lang = getattr(self.processor.tokenizer, 'language', None)
+        tokenizer_task = getattr(self.processor.tokenizer, 'task', None)
+        self.model.generation_config.language = tokenizer_lang if tokenizer_lang else "english"
+        self.model.generation_config.task = tokenizer_task if tokenizer_task else "transcribe"
+
+        self.model.eval()
+        logger.info("ASRManager: Initialization complete.")
+
+    def _preprocess_audio_bytes(self, audio_bytes: bytes) -> np.ndarray | None:
+        try:
+            with io.BytesIO(audio_bytes) as audio_buffer:
+                audio, sr = sf.read(audio_buffer, dtype='float32')
+            if audio.ndim == 2: audio = np.mean(audio, axis=1)
+            if sr != 16000: audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
+            if audio.ndim > 1: audio = audio.flatten()
+            # Ensure audio is not excessively short for feature extraction (e.g. min 0.1s)
+            # A very short audio might lead to too few frames.
+            # Whisper hop length is 160 samples (0.01s), window is 400 samples (0.025s)
+            # Need at least enough samples for one frame.
+            if audio.size < self.processor.feature_extractor.hop_length * 2: # Heuristic, e.g. min 2 frames
+                 logger.warning(f"Preprocessed audio is very short: {audio.size} samples. This might lead to issues.")
+            return audio
+        except Exception as e:
+            logger.error(f"Error decoding/preprocessing audio for an item: {e}", exc_info=False)
+            return None
+
+    def asr_batch(self, audio_bytes_list: List[bytes]) -> List[str]:
+        if not audio_bytes_list:
+            return []
+
+        processed_audios = []
+        error_flags = [False] * len(audio_bytes_list) 
+
+        logger.debug(f"Preprocessing batch of {len(audio_bytes_list)} audio items.")
+        for i, audio_b in enumerate(audio_bytes_list):
+            audio_arr = self._preprocess_audio_bytes(audio_b)
+            if audio_arr is not None and audio_arr.size > 0 : # Ensure non-empty after preprocessing
+                logger.debug(f"Item {i}: Successfully preprocessed. Raw samples: {audio_arr.size}")
+                processed_audios.append(audio_arr)
+            else:
+                logger.warning(f"Item {i}: Audio could not be processed or resulted in problematic array. Using placeholder.")
+                error_flags[i] = True
+                placeholder_audio = np.zeros(self.processor.feature_extractor.hop_length * 10, dtype=np.float32) # Placeholder e.g. 0.1s
+                processed_audios.append(placeholder_audio)
+                logger.debug(f"Item {i}: Placeholder created with {placeholder_audio.size} samples.")
+        
+        if all(ef for ef in error_flags) and audio_bytes_list:
+            logger.warning("All audios in the batch failed preprocessing adequately.")
+            return ["Error: Could not process audio (decode/preprocess failed)." for _ in audio_bytes_list]
+
+        logger.debug(f"Calling processor for features with {len(processed_audios)} items.")
+        try:
+            input_features_batch = self.processor( # Renamed variable for clarity
+                audio=processed_audios,
+                sampling_rate=16000,
+                return_tensors="pt",
+                padding="max_length",
+                max_length=self.expected_feature_length, # Use calculated expected length (should be 3000)
+                truncation=True,
+                return_attention_mask=True
+            )
+            
+            processed_input_features = input_features_batch.input_features 
+            attention_mask = input_features_batch.attention_mask
+
+            logger.debug(f"Shape of processed_input_features from processor: {processed_input_features.shape}")
+            logger.debug(f"Shape of attention_mask from processor: {attention_mask.shape}")
+
+
+            if not self.quantized_successfully and self.device.type != 'cpu':
+                 processed_input_features = processed_input_features.to(self.device)
+                 attention_mask = attention_mask.to(self.device)
+
+            logger.debug("Audio features batch processed and moved to device if necessary.")
+        except Exception as e:
+            logger.error(f"Error processing features for batch: {e}", exc_info=True)
+            final_error_results = []
+            for i_original in range(len(audio_bytes_list)):
+                if error_flags[i_original]: # If it failed in _preprocess_audio_bytes
+                    final_error_results.append("Error: Could not process audio (decode/preprocess failed).")
+                else: # If it failed in self.processor or later in this try block
+                    final_error_results.append("Error: Could not process audio features for batch.")
+            return final_error_results
+
+        logger.debug(f"Generating transcriptions for batch with features of shape: {processed_input_features.shape}")
+        try:
+            self.model.eval()
+            with torch.no_grad():
+                predicted_ids_batch = self.model.generate(
+                    input_features=processed_input_features, # Corrected 'inputs' to 'input_features'
+                    attention_mask=attention_mask,
+                    num_beams=1,
+                    do_sample=False
+                )
+            transcriptions_batch = self.processor.batch_decode(predicted_ids_batch, skip_special_tokens=True)
+            logger.info(f"Batch transcriptions generated. Count: {len(transcriptions_batch)}")
+
+            final_results = []
+            processed_transcription_idx = 0
+            for i in range(len(audio_bytes_list)):
+                if error_flags[i]: 
+                    final_results.append("Error: Could not process audio (decode/preprocess failed).")
+                else: 
+                    if processed_transcription_idx < len(transcriptions_batch):
+                        final_results.append(transcriptions_batch[processed_transcription_idx].strip())
+                        processed_transcription_idx += 1
+                    else:
+                        logger.error(f"Mismatch in transcription results for original index {i}. Expected transcription but not found.")
+                        final_results.append("Error: Transcription result missing after processing.")
+            return final_results
+
+        except Exception as e:
+            logger.error(f"Error during batch model generation: {e}", exc_info=True)
+            final_error_results = []
+            for i_original in range(len(audio_bytes_list)):
+                if error_flags[i_original]:
+                    final_error_results.append("Error: Could not process audio (decode/preprocess failed).")
+                else:
+                    final_error_results.append("Error: Could not generate transcription for batch.")
+            return final_error_results
+
+    def asr(self, audio_bytes: bytes) -> str:
+        logger.debug("Single instance ASR called (will use batch processing internally).")
+        results = self.asr_batch([audio_bytes])
+        return results[0] if results else "Error: ASR processing failed."
+
+# __main__ block (as in previous version, ensure logging.getLogger().setLevel(logging.DEBUG) is active here for testing)
+if __name__ == '__main__':
+    # Ensure the root logger is set to DEBUG for standalone testing
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    # Alternatively, if basicConfig was already called by a library, just set the level for the root or specific loggers:
+    # logging.getLogger().setLevel(logging.DEBUG) 
+    # logging.getLogger(__name__).setLevel(logging.DEBUG) # For this module's logger
+    # logging.getLogger("src.asr_manager").setLevel(logging.DEBUG) # If using named loggers like logger = logging.getLogger(__name__)
+
+    print("Running ASRManager standalone test with BATCHING (DEBUG logging enabled)...")
+    # ... (rest of the __main__ block is the same as the one from the previous version with varied audio lengths)
+    base_path_for_models = os.path.join(SCRIPT_DIR_ASR_MANAGER, "..", "..", "models") 
+    model_name_for_testing = "asr_finetuned_model_small_aug"
+    constructed_model_path_attempt1 = os.path.join(SCRIPT_DIR_ASR_MANAGER, "..", "..", "models", model_name_for_testing, "model_and_processor_files")
+    constructed_model_path_attempt2 = os.path.join(SCRIPT_DIR_ASR_MANAGER, "..", "models", model_name_for_testing, "model_and_processor_files")
+
+    if os.path.isdir(constructed_model_path_attempt1):
+        constructed_model_path = constructed_model_path_attempt1
+    elif os.path.isdir(constructed_model_path_attempt2):
+        constructed_model_path = constructed_model_path_attempt2
+    else: 
+        constructed_model_path = f"../models/{model_name_for_testing}/model_and_processor_files" 
+        if not os.path.isdir(constructed_model_path):
+             constructed_model_path = f"../../models/{model_name_for_testing}/model_and_processor_files"
+
+    print(f"Attempting to load model for testing from: {constructed_model_path}")
+
+    if not os.path.isdir(constructed_model_path):
+        print(f"ERROR: Model directory not found: {constructed_model_path}. Please check path for standalone test.")
     else:
         try:
-            asr_manager_instance = ASRManager(model_path_override=constructed_asr_model_path)
-            print("ASRManager initialized successfully for testing.")
+            manager = ASRManager(model_path_override=constructed_model_path)
+            print("ASRManager initialized.")
 
             dummy_sr = 16000
-            dummy_duration = 5 
-            dummy_audio_data = np.random.randn(dummy_sr * dummy_duration).astype(np.float32)
-            
-            dummy_audio_bytes_io = io.BytesIO()
-            sf.write(dummy_audio_bytes_io, dummy_audio_data, dummy_sr, format='WAV', subtype='FLOAT')
-            dummy_audio_bytes_content = dummy_audio_bytes_io.getvalue()
-            
-            print("\nTesting ASR with limited tokens (e.g., 10)...")
-            partial_transcription = asr_manager_instance.asr(dummy_audio_bytes_content, max_new_asr_tokens=10)
-            print(f"Test ASR Transcription (partial, 10 tokens): '{partial_transcription}'")
+            audio_short = np.random.randn(dummy_sr * 1).astype(np.float32) 
+            audio_medium = np.random.randn(dummy_sr * 15).astype(np.float32) 
+            audio_long_exact = np.random.randn(dummy_sr * 30).astype(np.float32) 
+            audio_very_long = np.random.randn(dummy_sr * 35).astype(np.float32)
 
-            # --- TextAutoCompleter Test (using the partial ASR output) ---
-            if partial_transcription and not partial_transcription.startswith("Error:"):
-                print("\nInitializing TextAutoCompleter...")
-                completer_instance = TextAutoCompleter() # Uses "gpt2" by default
-                print("TextAutoCompleter initialized.")
-                
-                print(f"\nAttempting to autocomplete ASR output: '{partial_transcription}'")
-                final_text = completer_instance.autocomplete(partial_transcription, max_length=30)
-                print(f"ASR + Autocomplete: '{final_text}'")
+
+            io_short = io.BytesIO(); sf.write(io_short, audio_short, dummy_sr, format='WAV', subtype='FLOAT'); bytes_short = io_short.getvalue()
+            io_medium = io.BytesIO(); sf.write(io_medium, audio_medium, dummy_sr, format='WAV', subtype='FLOAT'); bytes_medium = io_medium.getvalue()
+            io_long_exact = io.BytesIO(); sf.write(io_long_exact, audio_long_exact, dummy_sr, format='WAV', subtype='FLOAT'); bytes_long_exact = io_long_exact.getvalue()
+            io_very_long = io.BytesIO(); sf.write(io_very_long, audio_very_long, dummy_sr, format='WAV', subtype='FLOAT'); bytes_very_long = io_very_long.getvalue()
+            
+            faulty_bytes = b"this is not valid audio data and will fail sf.read"
+            # Create truly empty audio that soundfile can write (0 samples)
+            empty_sound_data = np.array([], dtype=np.float32)
+            io_empty = io.BytesIO(); sf.write(io_empty, empty_sound_data, dummy_sr, format='WAV', subtype='FLOAT'); bytes_empty = io_empty.getvalue()
+
+
+            audio_batch = [bytes_short, faulty_bytes, bytes_medium, bytes_empty, bytes_long_exact, bytes_very_long]
+            
+            print(f"\nTesting ASR with a batch of {len(audio_batch)} audios of varying lengths...")
+            logger.debug(f"Test batch audio byte lengths: {[len(b) for b in audio_batch]}")
+            transcriptions = manager.asr_batch(audio_batch)
+            
+            print("\nBatch Transcriptions:")
+            if len(transcriptions) == len(audio_batch):
+                for i, t in enumerate(transcriptions): 
+                    print(f"Audio {i+1} (Input audio_bytes length: {len(audio_batch[i]) if audio_batch[i] else 0} bytes): '{t}'")
             else:
-                print("\nSkipping autocompletion due to ASR error or empty output.")
+                print(f"Error: Number of transcriptions ({len(transcriptions)}) does not match batch size ({len(audio_batch)}).")
+                print("Transcriptions received:", transcriptions)
+            
+            print("\nTesting single ASR (via batch wrapper) with 1s audio:")
+            single_transcription_short = manager.asr(bytes_short)
+            print(f"Single 1s audio transcription: '{single_transcription_short}'")
+
+            print("\nTesting single ASR (via batch wrapper) with 35s audio (should be truncated):")
+            single_transcription_very_long = manager.asr(bytes_very_long)
+            print(f"Single 35s audio transcription: '{single_transcription_very_long}'")
 
         except Exception as e:
             print(f"An error occurred during standalone testing: {e}")

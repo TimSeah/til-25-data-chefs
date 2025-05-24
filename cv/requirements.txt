@@ -1,8 +1,19 @@
-# Dependencies for the CV container.
-fastapi==0.115.12
-uvicorn[standard]==0.34.2
-ultralytics # For YOLO
-numpy       # For np.frombuffer
-opencv-python # For cv2.imdecode
-# torch might be needed if not pulled in by ultralytics, but usually is.
-# Pillow might be needed by ultralytics or other image ops.
+# Located at: til-25-data-chefs/cv/requirements.txt
+# For the FastAPI server environment in Docker
+
+fastapi>=0.100.0   # Or your specific version
+uvicorn[standard]>=0.20.0 # Or your specific version
+
+# Core ML/CV dependencies
+# Let ultralytics pull its preferred versions of torch and numpy first if possible,
+# or ensure torch is installed before ultralytics in the Dockerfile.
+ultralytics
+
+# Explicitly list others if needed, but ultralytics should bring compatible ones:
+numpy # Let ultralytics specify, or if issues, pin to one compatible with torch & ultralytics
+Pillow
+opencv-python-headless # Good for servers, avoids GUI dependencies
+PyYAML
+# torch # Usually brought in by ultralytics
+# torchvision # Usually brought in by ultralytics
+# torchaudio # Usually brought in by ultralytics

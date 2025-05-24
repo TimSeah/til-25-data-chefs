@@ -1,14 +1,12 @@
-# Dockerfile for building the OCR image.
-
-# Dockerfile for building the OCR image with a pre-downloaded fine-tuned recognition model
+# Dockerfile for building the OCR image using standard pre-trained models.
 
 # Base image: NVIDIA CUDA image
 # For paddlepaddle-gpu==3.0.0 (which uses CUDA 12.x libraries)
 # CUDA 12.2.2 and cuDNN 8 provides a compatible environment.
+# The first FROM line is ignored, the second one is effective.
+FROM us-docker.pkg.dev/deeplearning-platform-release/gcr.io/pytorch-gpu.2-2.py310
 FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
 
-LABEL maintainer="dgxy2002"
-LABEL description="OCR Engine with PaddleOCR, FastAPI, GPU, pre-downloaded base models, and a custom fine-tuned recognition model."
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -20,16 +18,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Base directory for all models within the image
 ENV MODELS_BASE_DIR=/opt/paddleocr_models
 
-# Specific model directory names (these are the names of the folders AFTER extraction/copying)
+# Specific model directory names for STANDARD models
 ENV DET_MODEL_SUBDIR=det/en/en_PP-OCRv3_det_infer
-# *** IMPORTANT: This is for your fine-tuned model. ***
-# *** You will need to place your fine-tuned model files (inference.pdmodel, inference.pdiparams, etc.) ***
-# *** into a directory (e.g., "my_finetuned_rec_model_output") in your Docker build context (~/til-25-data-chefs/ocr/), ***
-# *** and ensure the COPY command below matches that directory name. ***
-ENV FINETUNED_REC_MODEL_DIR_NAME=my_custom_finetuned_ocrv4_rec # This becomes part of the path
-ENV REC_MODEL_SUBDIR=rec/en/${FINETUNED_REC_MODEL_DIR_NAME} 
 ENV CLS_MODEL_SUBDIR=cls/en/ch_ppocr_mobile_v2.0_cls_infer
 ENV LAYOUT_MODEL_SUBDIR=layout/en/picodet_lcnet_x1_0_fgd_layout_infer
+# ENV FINETUNED_REC_MODEL_DIR_NAME=my_custom_finetuned_ocrv4_rec # Not used in this config
+# ENV REC_MODEL_SUBDIR=rec/en/${FINETUNED_REC_MODEL_DIR_NAME} # Not used in this config
 
 # Default to GPU 0 within the container
 ENV CUDA_VISIBLE_DEVICES=0
@@ -53,21 +47,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 && \
     update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
-# Create ALL final model directories, including the one for the fine-tuned rec model
+# Create final model directories for STANDARD models
+# The 'rec/en' directory might still be used by PaddleOCR for caching default downloaded models.
 RUN mkdir -p ${MODELS_BASE_DIR}/${DET_MODEL_SUBDIR} && \
-    mkdir -p ${MODELS_BASE_DIR}/${REC_MODEL_SUBDIR} && \
+    mkdir -p ${MODELS_BASE_DIR}/rec/en && \
     mkdir -p ${MODELS_BASE_DIR}/${CLS_MODEL_SUBDIR} && \
     mkdir -p ${MODELS_BASE_DIR}/${LAYOUT_MODEL_SUBDIR} && \
     mkdir -p ${MODELS_BASE_DIR}/dicts
+    # NO backslash or && on the last command of the RUN block
 
 # Parent directories for downloaded model extraction (DET, CLS, LAYOUT)
+# These are temporary staging parent dirs before specific model dirs are populated.
+# This can also be a single RUN command.
 RUN mkdir -p ${MODELS_BASE_DIR}/det/en && \
-    mkdir -p ${MODELS_BASE_DIR}/rec/en && \
     mkdir -p ${MODELS_BASE_DIR}/cls/en && \
     mkdir -p ${MODELS_BASE_DIR}/layout/en
+    # NO backslash or && on the last command of the RUN block
 
 # Download and extract BASE PaddleOCR models (Detection, Classification, Layout)
-# Detection Model
+# Detection Model (en_PP-OCRv3_det_infer)
 RUN wget https://paddleocr.bj.bcebos.com/PP-OCRv3/english/en_PP-OCRv3_det_infer.tar -O /tmp/det_model.tar && \
     tar -xvf /tmp/det_model.tar -C ${MODELS_BASE_DIR}/det/en/ && \
     rm /tmp/det_model.tar
@@ -82,34 +80,43 @@ RUN wget https://paddleocr.bj.bcebos.com/ppstructure/models/layout/picodet_lcnet
     tar -xvf /tmp/layout_model.tar -C ${MODELS_BASE_DIR}/layout/en/ && \
     rm /tmp/layout_model.tar
 
-# --- Copy your fine-tuned recognition model ---
-# *** YOU MUST CREATE THIS DIRECTORY IN YOUR BUILD CONTEXT (~/til-25-data-chefs/ocr/) ***
-# *** AND PLACE YOUR EXPORTED FINE-TUNED MODEL FILES (inference.pdmodel, etc.) INSIDE IT. ***
-# *** If your directory has a different name, update the line below. ***
-COPY my_finetuned_rec_model_output/ ${MODELS_BASE_DIR}/${REC_MODEL_SUBDIR}/
+# --- Copy your fine-tuned recognition model (SECTION REMOVED/COMMENTED) ---
+# This section is intentionally omitted as we are using standard pre-trained models.
+# If you had a `my_finetuned_rec_model_output/` directory in your build context,
+# the COPY command for it would be here, but it's not needed for this configuration.
+# COPY my_finetuned_rec_model_output/ ${MODELS_BASE_DIR}/${REC_MODEL_SUBDIR}/ # Example of what's removed
 
-# Copy your custom character dictionary (generated in your src folder)
-COPY src/custom_char_dict.txt ${MODELS_BASE_DIR}/dicts/custom_char_dict.txt
+# Copy your custom character dictionary (SECTION REMOVED/COMMENTED)
+# This is not needed when using standard pre-trained English recognition model.
+# COPY src/custom_char_dict.txt ${MODELS_BASE_DIR}/dicts/custom_char_dict.txt # Example of what's removed
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -U pip setuptools wheel
 
-# Install paddlepaddle-gpu using the specific index URL for CUDA 12.x compatible wheels
-# This ensures a compatible version with the base CUDA image.
+# Install a NumPy version compatible with older OpenCV/PaddleOCR builds (NumPy 1.x series)
+# This should be done BEFORE paddleocr and requirements.txt to ensure compatibility.
+RUN pip install --no-cache-dir "numpy<2.0"
+
+# Install paddlepaddle-gpu using the specific index URL
 RUN pip install --no-cache-dir paddlepaddle-gpu==3.0.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
+
+# Install an older version of paddleocr (e.g., 2.7.x)
+RUN pip install --no-cache-dir "paddleocr~=2.7.0"
 
 # Copy and install the rest of your application requirements
 COPY requirements.txt .
+# If requirements.txt also specifies numpy, the earlier install of "numpy<2.0" will likely satisfy it
+# or pip will handle it. If requirements.txt forces numpy>=2.0, that would be a conflict.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copies your application source files from src/ to /workspace/src/
 # This includes ocr_server.py, ocr_manager.py.
-# train_label.txt will also be copied but is not used at runtime by the server.
 COPY src/ /workspace/src/
 
 # Copy and run the verification script (assuming it's in the Docker build context root)
-COPY docker_verify.py /workspace/docker_verify.py
-RUN python /workspace/docker_verify.py
+# Ensure docker_verify.py is adapted for standard models if it checks specific model paths.
+# COPY docker_verify.py /workspace/docker_verify.py
+# RUN python /workspace/docker_verify.py
 
 # Expose the port the app runs on
 EXPOSE 5003
@@ -117,4 +124,3 @@ EXPOSE 5003
 # Starts your model server.
 # The `src.` prefix for `ocr_server:app` is because WORKDIR is /workspace and files are in /workspace/src/
 CMD ["uvicorn", "src.ocr_server:app", "--host", "0.0.0.0", "--port", "5003"]
-

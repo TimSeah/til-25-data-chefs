@@ -4,22 +4,19 @@ uvicorn[standard]>=0.20.0
 python-multipart>=0.0.5 # For file uploads in FastAPI
 
 # PaddlePaddle for OCR (GPU version)
-# Ensure this version is compatible with your CUDA version (e.g., CUDA 12.x for paddlepaddle-gpu==3.0.0)
-# The Dockerfile installs a specific version from a specific index. This is for local dev.
-# For local dev, you might install via: 
-# pip install paddlepaddle-gpu==3.0.0 -f https://www.paddlepaddle.org.cn/packages/stable/cu126/
-# For requirements.txt, often just listing the package is fine if the Dockerfile handles explicit install.
-paddlepaddle-gpu # Let Dockerfile handle specific version install if needed, or specify here.
+# The Dockerfile installs a specific version (paddlepaddle-gpu==3.0.0)
+# This line is mainly for local dev or if Dockerfile didn't pin it.
+paddlepaddle-gpu
 
-# PaddleOCR and PPStructure dependencies (some might be automatically installed by paddleocr)
-paddleocr>=2.7.0 # Or a more recent version
-# ppstructure # Usually included with paddleocr or installed separately if needed.
+# PaddleOCR with PPStructure components
+# Use extras syntax to include ppstructure parts
+paddleocr[ppstructure]>=2.7.0
 
 # Image processing and numerical operations
 Pillow>=9.0.0
 numpy>=1.20.0
-opencv-python-headless>=4.5.0 # For image manipulation, often a dep of paddleocr
-scikit-image>=0.18.0 # Also often a dep
+opencv-python-headless>=4.5.0
+scikit-image>=0.18.0
 
 # Utilities
 PyYAML>=5.4 # For handling YAML configs (Paddle often uses them)

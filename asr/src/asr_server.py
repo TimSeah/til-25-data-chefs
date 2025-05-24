@@ -1,58 +1,44 @@
-"""Runs the ASR server with integrated text autocompletion."""
+"""Runs the ASR server, using batch processing."""
 
 import base64
 from fastapi import FastAPI, Request, HTTPException
-import logging # Added for better logging
+import logging
+from typing import List # For type hinting
 
-# Import both classes from your asr_manager.py file
-from asr_manager import ASRManager, TextAutoCompleter
+# Assuming asr_manager is in a 'src' subdirectory relative to where this server script might be run from,
+# or Python's path is set up to find 'src.asr_manager'.
+# If asr_manager.py is in the same directory, it would be: from asr_manager import ASRManager
+from asr_manager import ASRManager # Keep this if asr_manager.py is in src/
 
-# --- Global Instantiation of Models ---
-# These are created once when the Uvicorn server starts.
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-logging.info("Initializing ASRManager...")
-# ASRManager will use MODEL_DIR env var by default as set in Dockerfile
-asr_manager_instance = ASRManager()
-logging.info("ASRManager initialized.")
-
-logging.info("Initializing TextAutoCompleter...")
-# You can change "gpt2" to another compatible model if desired
-text_completer_instance = TextAutoCompleter(model_name="gpt2")
-logging.info("TextAutoCompleter initialized.")
-# --- End Global Instantiation ---
+# Configure logging early and set to DEBUG to see all messages
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
 app = FastAPI()
+
+logging.info("Initializing ASRManager in server module...")
+manager = ASRManager() # Instantiated once
+logging.info("ASRManager initialized in server module.")
 
 
 @app.on_event("startup")
 async def startup_event():
-    logging.info("Application startup: Models pre-loaded.")
-    # Optional: Add a "warm-up" call here if you notice the very first request is slow,
-    # especially if torch.compile is used in ASRManager.
-    # This is a very basic example; create proper silent audio bytes if you do this.
-    try:
-        logging.info("Warming up ASR model (optional)...")
-        # Create a tiny piece of silent audio for warmup if needed
-        # import soundfile as sf
-        # import numpy as np
-        # import io
-        # silent_audio_data = np.zeros(16000 // 10, dtype=np.float32) # 0.1 sec silence
-        # byte_io = io.BytesIO()
-        # sf.write(byte_io, silent_audio_data, 16000, format='WAV', subtype='PCM_16') # PCM_16 is common
-        # warmup_bytes = byte_io.getvalue()
-        # asr_manager_instance.asr(warmup_bytes, max_new_asr_tokens=2) # Use the global instance
-        
-        # logging.info("Warming up TextAutoCompleter (optional)...")
-        # text_completer_instance.autocomplete("Hello", max_length=5) # Use the global instance
-        logging.info("Model warmup (if enabled) complete.")
-    except Exception as e:
-        logging.error(f"Error during optional model warmup: {e}")
+    logging.info("Application startup event: ASRManager should be pre-loaded.")
+    # Optional: Warmup call with a dummy batch (can be useful)
+    # try:
+    #     logging.info("Warming up ASR model with a dummy batch...")
+    #     import numpy as np; import soundfile as sf; import io
+    #     dummy_audio = np.zeros(16000 // 2, dtype=np.float32) # 0.5s of silence
+    #     byte_io = io.BytesIO(); sf.write(byte_io, dummy_audio, 16000, format='WAV')
+    #     # Use a small, valid batch for warmup
+    #     manager.asr_batch([byte_io.getvalue(), byte_io.getvalue()])
+    #     logging.info("ASR model warmed up.")
+    # except Exception as e:
+    #     logging.error(f"Error during model warmup: {e}", exc_info=True)
 
 
 @app.post("/asr")
-async def asr(request: Request) -> dict[str, list[str]]:
-    """Performs ASR on audio files, with optional text autocompletion.
+async def asr(request: Request) -> dict[str, List[str]]:
+    """Performs ASR on a batch of audio files.
 
     Args:
         request: The API request. Contains a list of audio files, encoded in
@@ -72,61 +58,53 @@ async def asr(request: Request) -> dict[str, list[str]]:
         logging.error("Missing or invalid 'instances' field in JSON.")
         raise HTTPException(status_code=400, detail="JSON must contain a list of 'instances'.")
 
-    predictions = []
+    audio_bytes_list: List[bytes] = []
+    # Keep track of original indices for items that fail b64 or are missing 'b64'
+    # This helps construct the final response with errors in the correct places.
+    original_indices_for_successful_b64_decode: List[int] = []
+
     for i, instance in enumerate(inputs_json["instances"]):
-        if "b64" not in instance:
-            logging.warning(f"Instance {i} missing 'b64' field. Skipping.")
-            predictions.append("Error: Missing 'b64' field in instance.") # Placeholder for skipped
-            continue
+        if "b64" not in instance or not isinstance(instance["b64"], str):
+            logging.warning(f"Instance {i} missing 'b64' field or not a string. Will be marked as error.")
+            continue # This instance won't be processed by ASRManager
 
         try:
-            # Reads the base-64 encoded audio and decodes it into bytes.
             audio_bytes = base64.b64decode(instance["b64"])
             if not audio_bytes:
-                logging.warning(f"Instance {i} provided empty audio after base64 decode. Skipping.")
-                predictions.append("Error: Empty audio data after decoding.")
-                continue
-
-            # --- Step 1: Perform partial ASR ---
-            # Adjust max_new_asr_tokens as needed for your desired balance.
-            # Lower values are faster for ASR but give less context to the completer.
-            max_asr_tokens = 15 # Example value, tune this
-            partial_transcription = asr_manager_instance.asr(audio_bytes, max_new_asr_tokens=max_asr_tokens)
-            logging.info(f"Instance {i}: Partial ASR (first {max_asr_tokens} tokens): '{partial_transcription}'")
-
-            if partial_transcription.startswith("Error:"):
-                logging.warning(f"Instance {i}: ASR error: {partial_transcription}")
-                predictions.append(partial_transcription) # Propagate ASR error
-                continue
-
-            # --- Step 2: Autocomplete the partial transcription ---
-            final_transcription = partial_transcription # Default to partial if no completion needed or error
-
-            # Only attempt completion if ASR produced some non-error output.
-            # You might add more sophisticated logic here (e.g., based on length).
-            if partial_transcription:
-                # Adjust max_length for the autocompleter. This is the *total* desired length.
-                completion_max_length = len(partial_transcription.split()) + 20 # Example: allow 20 more words
-                if completion_max_length < 10: completion_max_length = 10 # ensure some minimum length
-                if completion_max_length > 100: completion_max_length = 100 # and some maximum
-
-                logging.info(f"Instance {i}: Attempting to autocomplete with max_length={completion_max_length}")
-                final_transcription = text_completer_instance.autocomplete(
-                    partial_transcription,
-                    max_length=completion_max_length
-                )
-                logging.info(f"Instance {i}: Final transcription after completion: '{final_transcription}'")
-            else:
-                logging.info(f"Instance {i}: Skipping autocompletion as partial ASR was empty.")
-
-            predictions.append(final_transcription)
-
+                logging.warning(f"Instance {i} provided empty audio after base64 decode. Will be marked as error.")
+                continue # This instance won't be processed
+            audio_bytes_list.append(audio_bytes)
+            original_indices_for_successful_b64_decode.append(i) # Store original index
         except base64.binascii.Error as b64_err:
-            logging.error(f"Instance {i}: Base64 decoding error: {b64_err}")
-            predictions.append("Error: Invalid base64 audio data.")
+            logging.warning(f"Instance {i}: Base64 decoding error: {b64_err}. Will be marked as error.")
+            # This instance won't be processed
         except Exception as e:
-            logging.error(f"Instance {i}: Unexpected error during processing: {e}", exc_info=True)
-            predictions.append(f"Error: Internal server error during processing instance {i}.")
+            logging.warning(f"Instance {i}: Unexpected error preparing audio: {e}. Will be marked as error.")
+            # This instance won't be processed
+
+    # Initialize final predictions list with error messages for all instances
+    predictions = ["Error: Invalid audio data or missing 'b64' field."] * len(inputs_json["instances"])
+
+    if audio_bytes_list: # Only call ASRManager if there's something to process
+        logging.debug(f"Sending a batch of {len(audio_bytes_list)} successfully decoded audios to ASRManager.")
+        transcriptions_from_manager = manager.asr_batch(audio_bytes_list)
+
+        # Place successful transcriptions back into the correct original positions
+        if len(transcriptions_from_manager) == len(original_indices_for_successful_b64_decode):
+            for i, original_idx in enumerate(original_indices_for_successful_b64_decode):
+                predictions[original_idx] = transcriptions_from_manager[i]
+        else:
+            logging.error(f"Mismatch between ASR results ({len(transcriptions_from_manager)}) and successfully decoded audios ({len(original_indices_for_successful_b64_decode)}). Filling with errors.")
+            # This case indicates an issue, so we ensure all processed items reflect some error from ASR
+            for original_idx in original_indices_for_successful_b64_decode:
+                predictions[original_idx] = "Error: ASR processing failed or result count mismatch."
+    elif len(inputs_json["instances"]) > 0: # No audio was successfully decoded, but instances were provided
+        logging.warning("No audio data successfully decoded from any instance.")
+        # The predictions list is already filled with errors, so no action needed here.
+    else: # No instances provided at all
+        logging.info("No instances provided in the request.")
+        predictions = []
+
 
     return {"predictions": predictions}
 
@@ -134,11 +112,9 @@ async def asr(request: Request) -> dict[str, list[str]]:
 @app.get("/health")
 def health() -> dict[str, str]:
     """Health check endpoint for the server."""
-    # You could add more sophisticated health checks here,
-    # e.g., try a very quick dummy inference on models if they have a quick health check method.
     return {"message": "health ok"}
 
-# To run this locally (outside Docker, assuming models and asr_manager.py are in correct relative paths):
-# Make sure MODEL_DIR is set in your environment, or ASRManager is modified to find model locally without it.
-# uvicorn src.asr_server:app --reload --port 5001 --host 0.0.0.0
-# (Adjust path `src.asr_server` if your file structure is different)
+# If you run this file directly with uvicorn for testing:
+# import uvicorn
+# if __name__ == "__main__":
+#     uvicorn.run(app, host="0.0.0.0", port=5001, log_level="debug")

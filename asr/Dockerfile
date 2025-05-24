@@ -1,9 +1,6 @@
 # Dockerfile for building the ASR image.
 
-
 # The base image, an example deep learning VM.
-# For a full list, see https://us-docker.pkg.dev/deeplearning-platform-release/gcr.io/
-# For info, see https://cloud.google.com/deep-learning-vm/docs/images#supported-frameworks
 FROM python:3.10-slim
 
 # Configures settings for the image.
@@ -17,18 +14,21 @@ RUN pip install -U pip
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copies your source files.
-# This will copy src/asr_manager.py (with both classes) and src/asr_server.py
-COPY src .
+# Copies your source files from the local 'src' directory directly into /workspace
+COPY src/. /workspace/ # Note the added '.' to copy contents
 
-#COPY TRAINED MODEL
-# This copies your ASR model to /app/model inside the container
-COPY ../models/asr_finetuned_model_small_aug/model_and_processor_files /app/model/
+# Ensure PYTHONPATH includes the workspace where your modules now reside directly
+ENV PYTHONPATH "${PYTHONPATH}:/workspace"
+
+# COPY TRAINED MODEL
+# This path should be relative to the Docker build context (where Dockerfile is).
+# It copies your ASR model to /app/model inside the container.
+# Assuming 'models' directory is a sibling of 'src' and Dockerfile is in 'asr/'
+COPY ../models/asr_finetuned_model_small_aug_VER1/model_and_processor_files /app/model/
 
 # Set the MODEL_DIR environment variable
-# ASRManager will use this if no model_path_override is given during instantiation
 ENV MODEL_DIR /app/model
 
 # Starts your model server.
-# This assumes 'app' is an instance of FastAPI (or similar) in asr_server.py
-CMD uvicorn asr_server:app --port 5001 --host 0.0.0.0
+# 'asr_server.py' is now directly in /workspace
+CMD ["uvicorn", "asr_server:app", "--host", "0.0.0.0", "--port", "5001"]
