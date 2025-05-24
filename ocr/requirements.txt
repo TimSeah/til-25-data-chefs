@@ -3,22 +3,13 @@ fastapi>=0.100.0
 uvicorn[standard]>=0.20.0
 python-multipart>=0.0.5 # For file uploads in FastAPI
 
-# PaddlePaddle for OCR (GPU version)
-# The Dockerfile installs a specific version (paddlepaddle-gpu==3.0.0)
-# This line is mainly for local dev or if Dockerfile didn't pin it.
-paddlepaddle-gpu
-
-# PaddleOCR with PPStructure components
-# Use extras syntax to include ppstructure parts
-paddleocr[ppstructure]>=2.7.0
+# OCR Engine
+easyocr>=1.7.0 # Or latest version
 
 # Image processing and numerical operations
 Pillow>=9.0.0
-numpy>=1.20.0
-opencv-python-headless>=4.5.0
-scikit-image>=0.18.0
+numpy>=1.20.0,<2.0 # Pinning numpy to <2.0
+opencv-python-headless>=4.5.0 # EasyOCR might use OpenCV components or it's useful for preprocessing
 
 # Utilities
-PyYAML>=5.4 # For handling YAML configs (Paddle often uses them)
-
-# Add any other specific dependencies your project might have
+PyYAML>=5.4 # If you still use YAML for other configs
