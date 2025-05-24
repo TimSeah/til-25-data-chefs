@@ -1,5 +1,24 @@
+# Model files
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.pth filter=lfs diff=lfs merge=lfs -text
 *.safetensors filter=lfs diff=lfs merge=lfs -text
-rl/episode_*.mp4 filter=lfs diff=lfs merge=lfs -text
+
+# Specific large text file
 ocr/src/train_label.txt filter=lfs diff=lfs merge=lfs -text
+
+# JSON files (specifically tokenizer and vocab, or broader if needed)
+ocr/fine_tuned_trocr_model/**/tokenizer.json filter=lfs diff=lfs merge=lfs -text
+ocr/fine_tuned_trocr_model/**/vocab.json filter=lfs diff=lfs merge=lfs -text
+
+# If other .json files under ocr/fine_tuned_trocr_model/ are also large and should be LFS,
+# add a line like the following (uncomment it):
+# ocr/fine_tuned_trocr_model/**/*.json filter=lfs diff=lfs merge=lfs -text
+
+# Catch-all for specific paths if needed, though wildcards are better.
+# The following are likely already covered by the wildcards above but are kept for explicitness if desired.
+# Covered by *.pt
+cv/src/best.pt filter=lfs diff=lfs merge=lfs -text
+# Covered by *.pt
+asr/src/checkpoints/**/*.pt filter=lfs diff=lfs merge=lfs -text
+# Covered by *.safetensors
+asr/src/checkpoints/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
