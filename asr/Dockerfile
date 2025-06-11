@@ -1,21 +1,35 @@
-# Dockerfile for building the ASR image.
+# Dockerfile for building the ASR image with GPU support.
 
-FROM python:3.10-slim
+# Use an NVIDIA CUDA base image with CUDA 12.2.2.
+#FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 # Configures settings for the image.
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_ROOT_USER_ACTION=ignore
 
+# Install Python 3.10 and pip.
+# Ubuntu 22.04 (the base of this CUDA image) includes Python 3.10.
+RUN apt-get update && \
+    apt-get install -y python3.10 python3-pip && \
+    rm -rf /var/lib/apt/lists/*
+
 # Explicitly create and set the working directory
 RUN mkdir -p /workspace
 WORKDIR /workspace
 
 # Installs your dependencies.
+# NOTE: CRITICAL - Ensure your requirements.txt specifies GPU-compatible versions
+# of your machine learning libraries compatible with CUDA 12.2.
+# For example:
+# - For PyTorch: Find the correct install command for CUDA 12.2 on https://pytorch.org/get-started/locally/
+#   (e.g., pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 or similar for 12.2)
+# - For TensorFlow: Use a GPU-enabled package (e.g., tensorflow[and-cuda]) and ensure compatibility with CUDA 12.2.
 # Copy only requirements.txt
-RUN pip install -U pip
+RUN python3 -m pip install -U pip
 COPY requirements.txt /workspace/requirements.txt
-RUN pip install --no-cache-dir -r /workspace/requirements.txt
+RUN python3 -m pip install --no-cache-dir -r /workspace/requirements.txt
 
 # Copies specific source files from your local 'src' directory
 # (relative to Dockerfile) directly into /workspace.
@@ -28,10 +42,8 @@ COPY src/__init__.py /workspace/__init__.py
 ENV PYTHONPATH="/workspace"
 
 # COPY TRAINED MODEL
-# This path is relative to the Docker build context (where Dockerfile is).
-# This operation will also be slow if the models directory is part of the huge context,
-# but it's a necessary copy.
-COPY ../models/asr_finetuned_model_small_aug_VER1/model_and_processor_files /app/model/
+# This path is relative to the Docker build context (where Dockerfile is - i.e., til-25-data-chefs/asr/).
+COPY models_OLD/asr_finetuned_model_small_aug/model_and_processor_files /app/model/
 
 # Set the MODEL_DIR environment variable
 ENV MODEL_DIR="/app/model"

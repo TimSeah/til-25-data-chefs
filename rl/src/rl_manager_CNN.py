@@ -82,7 +82,7 @@ class CNNDQN(nn.Module):
 
 # --- RL Manager using CNNDQN ---
 class RLManager:
-    def __init__(self, model_path="my_wargame_cnn_agent_cont_100k.pth"): # Default to your trained model
+    def __init__(self, model_path="my_wargame_cnn_agent_best.pth"): # Default to your trained model
         self.device = DEVICE
         print(f"Using device: {self.device}")
 

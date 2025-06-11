@@ -13,6 +13,21 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tqdm import tqdm
 
+# ADD THIS FUNCTION DEFINITION
+def batched_custom(iterable, n):
+    """
+    Batches data into tuples of length n. The last batch may be shorter.
+    Equivalent to itertools.batched in Python 3.12+.
+    """
+    if n < 1:
+        raise ValueError("n must be at least one")
+    it = iter(iterable)
+    while True:
+        # Read n items from the iterator
+        chunk = tuple(itertools.islice(it, n))
+        if not chunk: # If the chunk is empty, the iterator is exhausted
+            break
+        yield chunk
 
 load_dotenv()
 TEAM_NAME = os.getenv("TEAM_NAME")
@@ -62,15 +77,16 @@ def score_cv(preds: Sequence[Mapping[str, Any]], ground_truth: Any) -> float:
 
 
 def main():
-    data_dir = Path(f"/home/jupyter/{TEAM_TRACK}/cv")
-    results_dir = Path(f"/home/jupyter/{TEAM_NAME}")
+    data_dir = Path("/home/jupyter/advanced/cv")
+    results_dir = Path(f"results")
     results_dir.mkdir(parents=True, exist_ok=True)
 
     with open(data_dir / "annotations.json", "r") as f:
         annotations = json.load(f)
     instances = annotations["images"]
 
-    batch_generator = itertools.batched(sample_generator(instances, data_dir), n=BATCH_SIZE)
+    # CORRECTED LINE: Use the custom batching function included in the script
+    batch_generator = batched_custom(sample_generator(instances, data_dir), n=BATCH_SIZE)
 
     results = []
     for batch in tqdm(batch_generator, total=math.ceil(len(instances) / BATCH_SIZE)):
@@ -88,7 +104,7 @@ def main():
                     "category_id": detection["category_id"],
                 })
 
-    results_path = results_dir / "cv_results.json"
+    results_path = results_dir / f"cv_results.json"
     print(f"Saving test results to {str(results_path)}")
     with open(results_path, "w") as results_file:
         json.dump(results, results_file)

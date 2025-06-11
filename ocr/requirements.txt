@@ -1,15 +1,21 @@
-# FastAPI and Uvicorn
-fastapi>=0.100.0
-uvicorn[standard]>=0.20.0
-python-multipart>=0.0.5 # For file uploads in FastAPI
+# Web Framework & Server
+fastapi
+uvicorn[standard]
+python-multipart
 
-# OCR Engine
-easyocr>=1.7.0 # Or latest version
+# Image Processing & Numerical
+Pillow
+numpy
+opencv-python-headless
 
-# Image processing and numerical operations
-Pillow>=9.0.0
-numpy>=1.20.0,<2.0 # Pinning numpy to <2.0
-opencv-python-headless>=4.5.0 # EasyOCR might use OpenCV components or it's useful for preprocessing
+# PaddleOCR and its GPU backend
+# IMPORTANT: Verify paddleocr version. 2.7.x is common (e.g., 2.7.0.3).
+# If 2.10.0 is correct, ensure it's available and find its compatible paddlepaddle-gpu version.
+# For CUDA 12.2, paddlepaddle-gpu==2.6.1 is a common choice for paddleocr~2.7.x
+paddlepaddle-gpu
+paddleocr==2.10.0
 
-# Utilities
-PyYAML>=5.4 # If you still use YAML for other configs
+# Common dependencies for PaddleOCR (geometry, image utilities)
+shapely
+pyclipper
+scikit-image
