@@ -191,7 +191,7 @@ asr/logs/
 ocr/fine_tuned_trocr_model/runs/
 
 # RL generated episodes (if large and not essential to version control)
-rl/episode_*.mp4
+# rl/episode_*.mp4
 
 # Other large files identified
 # cv/src/best.pt # If it's a model output
