@@ -47,7 +47,7 @@ Our team, Data Chefs, participated in several challenges during the TIL-25 Hacka
 
 5.  **Automatic Speech Recognition (ASR) Challenge**
     *   **Description:** Training an ASR model.
-    *   **Repository:** [lolkabash/til-25-data-chefs-CV](https://github.com/lolkabash/til-25-data-chefs-ASR)
+    *   **Repository:** [lolkabash/til-25-data-chefs-ASR](https://github.com/lolkabash/til-25-data-chefs-ASR)
     *   **Key Technologies:** Jupyter Notebooks, Python, PowerShell, Shell.
     *   *(Briefly summarize the solution or key achievement for ASR)*
 
