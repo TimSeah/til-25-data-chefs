@@ -45,6 +45,12 @@ Our team, Data Chefs, participated in several challenges during the TIL-25 Hacka
     *   **Key Technologies:** Jupyter Notebooks, Python, PowerShell, Shell.
     *   *(Briefly summarize the solution or key achievement for CV)*
 
+5.  **Automatic Speech Recognition (ASR) Challenge**
+    *   **Description:** Training an ASR model.
+    *   **Repository:** [lolkabash/til-25-data-chefs-CV](https://github.com/lolkabash/til-25-data-chefs-ASR)
+    *   **Key Technologies:** Jupyter Notebooks, Python, PowerShell, Shell.
+    *   *(Briefly summarize the solution or key achievement for ASR)*
+
 ## ⚙️ Purpose of This Repository (til-25-data-chefs)
 
 *(This section needs to be filled based on the actual content and purpose of THIS specific repository. Here are some possibilities:)*
