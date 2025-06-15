@@ -173,11 +173,11 @@ src/gcloud/*.json
 **/results/
 **/data/ # If you have large datasets
 
-# Specific model file extensions and common large filenames
-*.pt
-*.pth
-*.safetensors
-optimizer.pt
+# Specific model file extensions and common large filenames (Put into LFS)
+# *.pt
+# *.pth
+# *.safetensors
+# optimizer.pt
 model.safetensors
 
 # Specific directories known to contain large model outputs/checkpoints
