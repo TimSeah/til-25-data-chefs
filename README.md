@@ -57,10 +57,15 @@ Welcome to the main repository for our team, "Data Chefs," from the TIL-25 Hacka
 
 As Data Chefs, we tackled the following challenges:
 *   **Automatic Speech Recognition (ASR):** Converting spoken audio into accurate text.
+    *   [lolkabash/til-25-data-chefs-ASR](https://github.com/lolkabash/til-25-data-chefs-ASR)
 *   **Computer Vision (CV):** Detecting, locating, and classifying objects in images.
+    *   [lolkabash/til-25-data-chefs-CV](https://github.com/lolkabash/til-25-data-chefs-CV)
 *   **Optical Character Recognition (OCR):** Identifying and extracting text from documents.
+    *   [lolkabash/til-25-data-chefs-OCR](https://github.com/lolkabash/til-25-data-chefs-OCR)
 *   **Reinforcement Learning (RL):** Developing algorithms for autonomous robot navigation.
+    *   [lolkabash/til-25-data-chefs-RL](https://github.com/lolkabash/til-25-data-chefs-RL)
 *   **Surprise Task:** Reconstructing fragments of shredded documents.
+    *   [lolkabash/til-25-data-chefs-surprise](https://github.com/lolkabash/til-25-data-chefs-surprise)
 
 ## 🧑‍🍳 Our Team: Data Chefs
 *   [Timothy Seah](https://github.com/lolkabash)
