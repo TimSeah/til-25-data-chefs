@@ -247,6 +247,11 @@ til-25-data-chefs/
 ```
 
 ## 📄 Optical Character Recognition (OCR) Challenge
+<p align="center">
+  <img src="media/ocr/sample_1009.jpg" alt="drawing" height="500"/>
+  <img src="media/ocr/result_1009.png" alt="drawing" height="500"/>
+</p>
+
 ### 📝 Description
 The challenge was to identify and extract text from various documents.
 
@@ -283,6 +288,7 @@ To boost accuracy, we finetuned the `en_PP-OCRv4_rec_train` recognition model. K
 This finetuning was vital for adapting the model to the competition data.
 
 ## 🤖 Reinforcement Learning (RL) Challenge
+![RL Agent Preview](media/README%20Preview.gif)
 ### 📝 Description
 We developed algorithms for a simulated robot to autonomously navigate an environment through trial-and-error learning. The environment involved a maze layout where teams played as "Scout" or "Guard" in 4 total rounds, round-robin style.
 
@@ -324,6 +330,7 @@ The core of this final agent was a Deep Q-Network (DQN) with the following key c
 *   **Iterative Refinement:** The final model was the product of extensive experimentation. Early attempts explored concepts like MARL PPO ("Attempt 1") and simpler MLP/DQN versions ("Attempt 2", "Attempt 4", "Attempt 5"). We also experimented with different agent training strategies ("Attempt 7 CNN DQN Train All Agents Simultaneously", "Attempt 8 CNN DQN Train Seperate Agents") and reward designs ("Attempt 3 Guard DQNV2") before arriving at the configuration in "Attempt 10". This iterative process allowed us to fine-tune hyperparameters (learning rate, buffer size, update frequencies) and the overall agent design for optimal performance.
 
 ## 🖼️ Computer Vision (CV) Challenge
+![Validation Batch Prediction](media/val_batch2_pred.jpg)
 ### 📝 Description
 The task was to detect, locate, and classify objects (vehicles, vessels, aircraft) within complex image frames. Our target was 18 specific classes.
 
@@ -397,6 +404,7 @@ For the ASR challenge, our strategy revolved around deploying a fine-tuned and o
 While earlier explorations (as noted in previous script examples) might have involved other models like Wav2Vec2 or different preprocessing tools like Pydub for dataset preparation, our final, competition-ready `asr_manager.py` showcases a streamlined pipeline focused on an optimized, fine-tuned Whisper model.
 
 ## 🧩 Surprise Task: Document Reassembly
+![document reconstruc](https://github.com/user-attachments/assets/1a2f5e8f-ffbe-4363-8ab4-3f32c60095aa)
 ### 📝 Description
 The Surprise Task challenged us to develop a system for reassembling shredded documents. Given vertical slices of a document (as base64 encoded JPEGs), our system needed to output the correct permutation of these slices to reconstruct the original document. All strips were guaranteed to be of the same width and height and right-side up.
 
