@@ -57,18 +57,18 @@ Welcome to the main repository for our team, "Data Chefs," from the TIL-25 Hacka
 
 As Data Chefs, we tackled the following challenges:
 *   **Automatic Speech Recognition (ASR):** Converting spoken audio into accurate text.
-    *   [lolkabash/til-25-data-chefs-ASR](https://github.com/lolkabash/til-25-data-chefs-ASR)
+    *   [TimSeah/til-25-data-chefs-ASR](https://github.com/TimSeah/til-25-data-chefs-ASR)
 *   **Computer Vision (CV):** Detecting, locating, and classifying objects in images.
-    *   [lolkabash/til-25-data-chefs-CV](https://github.com/lolkabash/til-25-data-chefs-CV)
+    *   [TimSeah/til-25-data-chefs-CV](https://github.com/TimSeah/til-25-data-chefs-CV)
 *   **Optical Character Recognition (OCR):** Identifying and extracting text from documents.
-    *   [lolkabash/til-25-data-chefs-OCR](https://github.com/lolkabash/til-25-data-chefs-OCR)
+    *   [TimSeah/til-25-data-chefs-OCR](https://github.com/TimSeah/til-25-data-chefs-OCR)
 *   **Reinforcement Learning (RL):** Developing algorithms for autonomous robot navigation.
-    *   [lolkabash/til-25-data-chefs-RL](https://github.com/lolkabash/til-25-data-chefs-RL)
+    *   [TimSeah/til-25-data-chefs-RL](https://github.com/TimSeah/til-25-data-chefs-RL)
 *   **Surprise Task:** Reconstructing fragments of shredded documents.
-    *   [lolkabash/til-25-data-chefs-surprise](https://github.com/lolkabash/til-25-data-chefs-surprise)
+    *   [TimSeah/til-25-data-chefs-surprise](https://github.com/TimSeah/til-25-data-chefs-surprise)
 
 ## 🧑‍🍳 Our Team: Data Chefs
-*   [Timothy Seah](https://github.com/lolkabash)
+*   [Timothy Seah](https://github.com/TimSeah)
 *   [Darren Goh](https://github.com/dgxy2002)
 *   [Felix Teo](https://github.com/felix21g)
 *   [Freddie Loh](https://github.com/FredSterz)
@@ -91,7 +91,7 @@ As Data Chefs, we tackled the following challenges:
 
 ## 🧠 DSTA BrainHack TIL-AI 2025: Competition Overview & Resources
 
-Our project was developed as part of the DSTA BrainHack TIL-AI 2025 competition. The competition provided a template repository (`til-ai/til-25`) which this repository, `lolkabash/til-25-data-chefs`, is based on.
+Our project was developed as part of the DSTA BrainHack TIL-AI 2025 competition. The competition provided a template repository (`til-ai/til-25`) which this repository, `TimSeah/til-25-data-chefs`, is based on.
 
 ![Banner for TIL-AI](https://static.wixstatic.com/media/b03c31_bdb8962d37364d7c8cc3e6ae234bb172~mv2.png/v1/crop/x_0,y_1,w_3392,h_1453/fill/w_3310,h_1418,al_c,q_95,usm_0.66_1.00_0.01,enc_avif,quality_auto/Brainhack%20KV_v12_FOR_WEB.png)
 
@@ -118,7 +118,7 @@ These resources were vital to us during the hackathon:
 
 ## 🎯 Purpose of Our Repository (til-25-data-chefs)
 
-This repository, `lolkabash/til-25-data-chefs`, was the central working space for our team, "Data Chefs," during the DSTA BrainHack TIL-AI 2025. We created it based on the official `til-ai/til-25` competition template repository.
+This repository, `TimSeah/til-25-data-chefs`, was the central working space for our team, "Data Chefs," during the DSTA BrainHack TIL-AI 2025. We created it based on the official `til-ai/til-25` competition template repository.
 
 It housed all the code, models, and documentation we developed for the challenges. While we managed detailed model development for each challenge in separate dedicated repositories (linked below), this repository served as our primary fork from the competition template. It contained the necessary structure for the competition, submission scripts, and our overall team documentation.
 
@@ -137,7 +137,7 @@ This section outlines the setup and usage patterns we followed during the hackat
 1.  **Template Creation:** We created this repository using the official `til-ai/til-25` repository as a template.
 2.  **Cloning:** We cloned our repository into our Vertex AI workbenches.
     ```bash
-    git clone https://github.com/lolkabash/til-25-data-chefs.git
+    git clone https://github.com/TimSeah/til-25-data-chefs.git
     cd til-25-data-chefs
     ```
 3.  **Initialize Git Submodules:** We ran the following to pull in `til-25-finals` and `til-25-environment`:
@@ -165,11 +165,11 @@ For each challenge (ASR, CV, OCR, RL, Surprise), our process was:
 5.  Configure the `Dockerfile` for building the challenge-specific Docker image.
 
 We conducted intensive model development and experimentation for each challenge in their dedicated repositories:
-*   OCR: [lolkabash/til-25-data-chefs-OCR](https://github.com/lolkabash/til-25-data-chefs-OCR)
-*   RL: [lolkabash/til-25-data-chefs-RL](https://github.com/lolkabash/til-25-data-chefs-RL)
-*   CV: [lolkabash/til-25-data-chefs-CV](https://github.com/lolkabash/til-25-data-chefs-CV)
-*   ASR: [lolkabash/til-25-data-chefs-ASR](https://github.com/lolkabash/til-25-data-chefs-ASR)
-*   Surprise: [lolkabash/til-25-data-chefs-surprise](https://github.com/lolkabash/til-25-data-chefs-surprise)
+*   OCR: [TimSeah/til-25-data-chefs-OCR](https://github.com/TimSeah/til-25-data-chefs-OCR)
+*   RL: [TimSeah/til-25-data-chefs-RL](https://github.com/TimSeah/til-25-data-chefs-RL)
+*   CV: [TimSeah/til-25-data-chefs-CV](https://github.com/TimSeah/til-25-data-chefs-CV)
+*   ASR: [TimSeah/til-25-data-chefs-ASR](https://github.com/TimSeah/til-25-data-chefs-ASR)
+*   Surprise: [TimSeah/til-25-data-chefs-surprise](https://github.com/TimSeah/til-25-data-chefs-surprise)
 
 We then integrated the finalized code from these specialized repositories into the corresponding challenge subdirectories within this main `til-25-data-chefs` repository for building and submission.
 
@@ -251,7 +251,7 @@ til-25-data-chefs/
 The challenge was to identify and extract text from various documents.
 
 ### 🔗 Our OCR Repository Link
-[lolkabash/til-25-data-chefs-OCR](https://github.com/lolkabash/til-25-data-chefs-OCR) – This is where we did the heavy lifting for OCR model development.
+[TimSeah/til-25-data-chefs-OCR](https://github.com/TimSeah/til-25-data-chefs-OCR) – This is where we did the heavy lifting for OCR model development.
 
 ### 💻 Key Technologies We Used
 *   **PaddleOCR (v2.10.0):** This was our core OCR engine for text detection, recognition, and layout analysis.
@@ -287,7 +287,7 @@ This finetuning was vital for adapting the model to the competition data.
 We developed algorithms for a simulated robot to autonomously navigate an environment through trial-and-error learning. The environment involved a maze layout where teams played as "Scout" or "Guard" in 4 total rounds, round-robin style.
 
 ### 🔗 Our RL Repository Link
-[lolkabash/til-25-data-chefs-RL](https://github.com/lolkabash/til-25-data-chefs-RL)
+[TimSeah/til-25-data-chefs-RL](https://github.com/TimSeah/til-25-data-chefs-RL)
 
 ### 💻 Key Technologies We Used
 *   **Python:** Primary programming language for implementing the RL algorithms.
@@ -328,7 +328,7 @@ The core of this final agent was a Deep Q-Network (DQN) with the following key c
 The task was to detect, locate, and classify objects (vehicles, vessels, aircraft) within complex image frames. Our target was 18 specific classes.
 
 ### 🔗 Our CV Repository Link
-[lolkabash/til-25-data-chefs-CV](https://github.com/lolkabash/til-25-data-chefs-CV) – Our CV model development, including Jupyter notebooks and training scripts, is detailed here.
+[TimSeah/til-25-data-chefs-CV](https://github.com/TimSeah/til-25-data-chefs-CV) – Our CV model development, including Jupyter notebooks and training scripts, is detailed here.
 
 ### 💻 Key Technologies We Used
 *   **Python:** Our primary language for scripting and model training.
@@ -362,7 +362,7 @@ Our final model was the `best.pt` checkpoint from our training run using the tun
 We needed to convert spoken audio recordings into accurate text transcripts.
 
 ### 🔗 Our ASR Repository Link
-[lolkabash/til-25-data-chefs-ASR](https://github.com/lolkabash/til-25-data-chefs-ASR) – Our ASR model development, including fine-tuning scripts and experiments, is detailed here.
+[TimSeah/til-25-data-chefs-ASR](https://github.com/TimSeah/til-25-data-chefs-ASR) – Our ASR model development, including fine-tuning scripts and experiments, is detailed here.
 
 ### 💻 Key Technologies We Used
 *   **Python:** Our primary language for scripting and model operations.
@@ -401,7 +401,7 @@ While earlier explorations (as noted in previous script examples) might have inv
 The Surprise Task challenged us to develop a system for reassembling shredded documents. Given vertical slices of a document (as base64 encoded JPEGs), our system needed to output the correct permutation of these slices to reconstruct the original document. All strips were guaranteed to be of the same width and height and right-side up.
 
 ### 🔗 Our Surprise Task Repository Link
-[lolkabash/til-25-data-chefs-surprise](https://github.com/lolkabash/til-25-data-chefs-surprise) – Our development for this challenge is located here.
+[TimSeah/til-25-data-chefs-surprise](https://github.com/TimSeah/til-25-data-chefs-surprise) – Our development for this challenge is located here.
 
 ### 💻 Key Technologies We Used
 *   **Python:** The primary language for our solution.
